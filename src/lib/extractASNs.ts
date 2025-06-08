@@ -1,10 +1,24 @@
 import { execSync } from "child_process";
 import { ignoreList } from "../../config";
 
+// Color helpers
+const color = {
+  reset: "\x1b[0m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  red: "\x1b[31m",
+  cyan: "\x1b[36m",
+  magenta: "\x1b[35m",
+  gray: "\x1b[90m",
+};
+
 function extractASNs(): number[] {
   const asNumbers: number[] = [];
 
   try {
+    console.log(
+      `${color.cyan}[extractASNs] Running vtysh to extract ASNs...${color.reset}`
+    );
     const commandOutput = execSync("sudo vtysh -c 'sh bgp su'").toString();
     const lines = commandOutput.split("\n");
 
@@ -19,9 +33,16 @@ function extractASNs(): number[] {
       }
     }
 
-    console.log(`ASNs:`, asNumbers);
+    console.log(
+      `${color.green}[extractASNs] ASNs found:${color.reset} ${color.magenta}${asNumbers.join(
+        ", "
+      )}${color.reset}`
+    );
   } catch (error) {
-    console.error("Error executing BGP command:", error);
+    console.error(
+      `${color.red}[extractASNs] Error executing BGP command:${color.reset}`,
+      error
+    );
   }
 
   return asNumbers;
