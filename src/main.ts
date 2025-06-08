@@ -31,6 +31,7 @@ function runVtysh(args: string[]): Promise<void> {
 
 async function main() {
   console.log(`${color.cyan}[main]${color.reset} Extracting ASNs...`);
+
   const asns = extractASNs();
   console.log(
     `${color.green}[main]${color.reset} Found ASNs: ${color.magenta}${asns.join(
@@ -40,25 +41,34 @@ async function main() {
 
   for (const asn of asns) {
     console.log(`${color.cyan}[main]${color.reset} Processing ASN ${asn}...`);
+
     const asSets = await fetchAsSets(asn);
     console.log(
-      `${color.green}[main]${color.reset} AS-SETs for ASN ${asn}: ${color.magenta
+      `${color.green}[main]${color.reset} AS-SETs for ASN ${asn}: ${
+        color.magenta
       }${asSets.join(", ")}${color.reset}`
     );
+
     const prefixLists = await generatePrefixLists(`${asn}`, asSets);
 
     const commands = generatePrefixListCommands(prefixLists);
     console.log(
-      `${color.cyan}[main]${color.reset} Generated ${commands.length - 2
+      `${color.cyan}[main]${color.reset} Generated ${
+        commands.length - 2
       } prefix-list commands for ASN ${asn}.`
     );
 
     if (commands.length > 2) {
       const vtyshArgs = commands.flatMap((cmd) => ["-c", cmd]);
+
       console.log(
-        `${color.cyan}[main]${color.reset} Executing vtysh for ASN ${asn} with ${commands.length - 2
+        `${color.cyan}[main]${
+          color.reset
+        } Executing vtysh for ASN ${asn} with ${
+          commands.length - 2
         } commands...`
       );
+
       try {
         await runVtysh(vtyshArgs);
         commands
@@ -66,6 +76,7 @@ async function main() {
           .forEach((cmd) =>
             console.log(`${color.green}[vtysh]${color.reset} Adding ${cmd}`)
           );
+
         console.log(
           `${color.green}[main]${color.reset} vtysh execution for ASN ${asn} completed.`
         );
@@ -74,6 +85,7 @@ async function main() {
           `${color.red}[main]${color.reset} vtysh command timed out or failed for ASN ${asn}:`,
           e instanceof Error ? e.message : String(e)
         );
+
         continue;
       }
     } else {
@@ -82,6 +94,7 @@ async function main() {
       );
     }
   }
+
   console.log(`${color.green}[main]${color.reset} All ASNs processed.`);
 }
 

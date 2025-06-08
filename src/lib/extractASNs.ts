@@ -17,22 +17,25 @@ function extractASNs(): number[] {
     console.log(
       `${color.cyan}[extractASNs]${color.reset} Running vtysh to extract ASNs...`
     );
+
     const commandOutput = execSync("sudo vtysh -c 'sh bgp su'").toString();
     const lines = commandOutput.split("\n");
 
     for (let i = 6; i < lines.length; i++) {
       const columns = lines[i].trim().split(/\s+/);
+
       if (columns.length >= 3) {
         const AS = parseInt(columns[2]);
+
         if (!isNaN(AS) && !ignoreList.includes(AS) && !asNumbers.includes(AS))
           asNumbers.push(AS);
       }
     }
 
     console.log(
-      `${color.green}[extractASNs]${color.reset} ASNs found: ${color.magenta}${asNumbers.join(
-        ", "
-      )}${color.reset}`
+      `${color.green}[extractASNs]${color.reset} ASNs found: ${
+        color.magenta
+      }${asNumbers.join(", ")}${color.reset}`
     );
   } catch (error) {
     console.error(
