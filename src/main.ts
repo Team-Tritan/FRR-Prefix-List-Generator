@@ -5,7 +5,7 @@ import extractASNs from "./lib/extractASNs";
 import generatePrefixLists, {
   generatePrefixListCommands,
 } from "./lib/generatePrefixLists";
-import { execSync } from "child_process";
+import { spawn } from "child_process";
 
 const color = {
   reset: "\x1b[0m",
@@ -16,6 +16,34 @@ const color = {
   magenta: "\x1b[35m",
   gray: "\x1b[90m",
 };
+
+function runVtyshWithTimeout(args: string[], timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("vtysh", args, { stdio: "pipe" });
+    let timedOut = false;
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      proc.kill("SIGKILL");
+      reject(new Error("vtysh timed out"));
+    }, timeoutMs);
+
+    proc.on("error", (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+
+    proc.on("exit", (code, signal) => {
+      clearTimeout(timeout);
+      if (timedOut) return;
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`vtysh exited with code ${code} signal ${signal}`));
+      }
+    });
+  });
+}
 
 async function main() {
   console.log(`${color.cyan}[main]${color.reset} Extracting ASNs...`);
@@ -43,13 +71,12 @@ async function main() {
 
     if (commands.length > 2) {
       // "conf t", ...cmds..., "end"
-      const vtyshCmd =
-        "vtysh " + commands.map((cmd) => `-c "${cmd}"`).join(" ");
+      const vtyshArgs = commands.map((cmd) => `-c`).flatMap((c, i) => [c, commands[i]]);
       console.log(
         `${color.cyan}[main]${color.reset} Executing vtysh for ASN ${asn} with ${commands.length - 2} commands...`
       );
       try {
-        execSync(vtyshCmd, { timeout: 10000 }); // 10 seconds timeout
+        await runVtyshWithTimeout(vtyshArgs, 10000);
         commands.slice(1, -1).forEach((cmd) =>
           console.log(`${color.green}[vtysh]${color.reset} Adding ${cmd}`)
         );
