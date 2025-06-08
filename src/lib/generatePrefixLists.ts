@@ -15,7 +15,7 @@ interface PrefixLists {
   v6: string[];
 }
 
-function runBGPQ4Async(
+async function runBGPQ4Async(
   command: string,
   asSet: string,
   version: string,
@@ -28,7 +28,6 @@ function runBGPQ4Async(
     const [cmd, ...args] = command.split(" ");
     const proc = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
-    let stderr = "";
     let finished = false;
 
     const timeout = setTimeout(() => {
@@ -44,9 +43,6 @@ function runBGPQ4Async(
 
     proc.stdout.on("data", (data) => {
       stdout += data.toString();
-    });
-    proc.stderr.on("data", (data) => {
-      stderr += data.toString();
     });
 
     proc.on("error", (err) => {
@@ -80,22 +76,25 @@ function runBGPQ4Async(
   });
 }
 
-async function generatePrefixLists(asn: string, asSets: string[]): Promise<PrefixLists> {
+export async function generatePrefixLists(
+  asn: string,
+  asSets: string[]
+): Promise<PrefixLists> {
   const results: PrefixLists = { v4: [], v6: [] };
 
   if (asSets && asSets.length > 0) {
     for (const asSet of asSets) {
-      let namingFormatV4 = `AS${asn}-In-v4`;
-      let namingFormatV6 = `AS${asn}-In-v6`;
+      const namingFormatV4 = `AS${asn}-In-v4`;
+      const namingFormatV6 = `AS${asn}-In-v6`;
 
-      let bgpq4IPv4Command = `bgpq4 ${asSet} -l ${namingFormatV4} -S AFRINIC,ARIN,APNIC,LACNIC,RIPE`;
-      let bgpq4IPv6Command = `bgpq4 -6 ${asSet} -l ${namingFormatV6} -S AFRINIC,ARIN,APNIC,LACNIC,RIPE`;
+      const bgpq4IPv4Command = `bgpq4 ${asSet} -l ${namingFormatV4} -S AFRINIC,ARIN,APNIC,LACNIC,RIPE`;
+      const bgpq4IPv6Command = `bgpq4 -6 ${asSet} -l ${namingFormatV6} -S AFRINIC,ARIN,APNIC,LACNIC,RIPE`;
 
-      let resultIPv4 = await runBGPQ4Async(bgpq4IPv4Command, asSet, "IPv4");
-      let resultIPv6 = await runBGPQ4Async(bgpq4IPv6Command, asSet, "IPv6");
+      const resultIPv4 = await runBGPQ4Async(bgpq4IPv4Command, asSet, "IPv4");
+      const resultIPv6 = await runBGPQ4Async(bgpq4IPv6Command, asSet, "IPv6");
 
-      let linesIPv4 = resultIPv4.trim() ? resultIPv4.trim().split("\n") : [];
-      let linesIPv6 = resultIPv6.trim() ? resultIPv6.trim().split("\n") : [];
+      const linesIPv4 = resultIPv4.trim() ? resultIPv4.trim().split("\n") : [];
+      const linesIPv6 = resultIPv6.trim() ? resultIPv6.trim().split("\n") : [];
 
       if (linesIPv4.length > 0) {
         console.log(
@@ -108,11 +107,11 @@ async function generatePrefixLists(asn: string, asSets: string[]): Promise<Prefi
         );
       }
 
-      for (let i = 0; i < linesIPv4.length; i++)
-        if (!results.v4.includes(linesIPv4[i])) results.v4.push(linesIPv4[i]);
+      for (const line of linesIPv4)
+        if (!results.v4.includes(line)) results.v4.push(line);
 
-      for (let i = 0; i < linesIPv6.length; i++)
-        if (!results.v6.includes(linesIPv6[i])) results.v6.push(linesIPv6[i]);
+      for (const line of linesIPv6)
+        if (!results.v6.includes(line)) results.v6.push(line);
     }
   }
 

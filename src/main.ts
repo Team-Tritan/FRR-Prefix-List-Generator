@@ -17,37 +17,21 @@ const color = {
   gray: "\x1b[90m",
 };
 
-function runVtyshWithTimeout(args: string[], timeoutMs: number): Promise<void> {
+function runVtysh(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const proc = spawn("vtysh", args, { stdio: "pipe" });
-    let timedOut = false;
 
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      proc.kill("SIGKILL");
-      reject(new Error("vtysh timed out"));
-    }, timeoutMs);
-
-    proc.on("error", (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
-
+    proc.on("error", (err) => reject(err));
     proc.on("exit", (code, signal) => {
-      clearTimeout(timeout);
-      if (timedOut) return;
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`vtysh exited with code ${code} signal ${signal}`));
-      }
+      if (code === 0) resolve();
+      else reject(new Error(`vtysh exited with code ${code} signal ${signal}`));
     });
   });
 }
 
 async function main() {
   console.log(`${color.cyan}[main]${color.reset} Extracting ASNs...`);
-  let asns = extractASNs();
+  const asns = extractASNs();
   console.log(
     `${color.green}[main]${color.reset} Found ASNs: ${color.magenta}${asns.join(
       ", "
@@ -56,37 +40,39 @@ async function main() {
 
   for (const asn of asns) {
     console.log(`${color.cyan}[main]${color.reset} Processing ASN ${asn}...`);
-    let asSets = await fetchAsSets(asn);
+    const asSets = await fetchAsSets(asn);
     console.log(
-      `${color.green}[main]${color.reset} AS-SETs for ASN ${asn}: ${color.magenta}${asSets.join(
-        ", "
-      )}${color.reset}`
+      `${color.green}[main]${color.reset} AS-SETs for ASN ${asn}: ${color.magenta
+      }${asSets.join(", ")}${color.reset}`
     );
-    let prefixLists = await generatePrefixLists(`${asn}`, asSets);
+    const prefixLists = await generatePrefixLists(`${asn}`, asSets);
 
-    let commands = generatePrefixListCommands(prefixLists);
+    const commands = generatePrefixListCommands(prefixLists);
     console.log(
-      `${color.cyan}[main]${color.reset} Generated ${commands.length - 2} prefix-list commands for ASN ${asn}.`
+      `${color.cyan}[main]${color.reset} Generated ${commands.length - 2
+      } prefix-list commands for ASN ${asn}.`
     );
 
     if (commands.length > 2) {
-      // "conf t", ...cmds..., "end"
-      const vtyshArgs = commands.map((cmd) => `-c`).flatMap((c, i) => [c, commands[i]]);
+      const vtyshArgs = commands.flatMap((cmd) => ["-c", cmd]);
       console.log(
-        `${color.cyan}[main]${color.reset} Executing vtysh for ASN ${asn} with ${commands.length - 2} commands...`
+        `${color.cyan}[main]${color.reset} Executing vtysh for ASN ${asn} with ${commands.length - 2
+        } commands...`
       );
       try {
-        await runVtyshWithTimeout(vtyshArgs, 10000);
-        commands.slice(1, -1).forEach((cmd) =>
-          console.log(`${color.green}[vtysh]${color.reset} Adding ${cmd}`)
-        );
+        await runVtysh(vtyshArgs);
+        commands
+          .slice(1, -1)
+          .forEach((cmd) =>
+            console.log(`${color.green}[vtysh]${color.reset} Adding ${cmd}`)
+          );
         console.log(
           `${color.green}[main]${color.reset} vtysh execution for ASN ${asn} completed.`
         );
       } catch (e) {
         console.error(
           `${color.red}[main]${color.reset} vtysh command timed out or failed for ASN ${asn}:`,
-          (e instanceof Error ? e.message : String(e))
+          e instanceof Error ? e.message : String(e)
         );
         continue;
       }
