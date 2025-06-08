@@ -1,14 +1,5 @@
 import { spawn } from "child_process";
-
-const color = {
-  reset: "\x1b[0m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  red: "\x1b[31m",
-  cyan: "\x1b[36m",
-  magenta: "\x1b[35m",
-  gray: "\x1b[90m",
-};
+import { log, logInfo, logWarn, logError, logMagenta, logGray, color } from "./logger";
 
 interface PrefixLists {
   v4: string[];
@@ -22,9 +13,7 @@ async function runBGPQ4Async(
   timeoutMs = 10000
 ): Promise<string> {
   return new Promise((resolve) => {
-    console.log(
-      `${color.cyan}[bgpq4]${color.reset} Running ${version} command for ${asSet}: ${color.gray}${command}${color.reset}`
-    );
+    log("bgpq4", `Running ${version} command for ${asSet}: ${color.gray}${command}${color.reset}`, color.cyan);
 
     const [cmd, ...args] = command.split(" ");
     const proc = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -36,11 +25,7 @@ async function runBGPQ4Async(
       if (!finished) {
         finished = true;
         proc.kill("SIGKILL");
-
-        console.warn(
-          `${color.yellow}[bgpq4]${color.reset} ${version} command for ${asSet} timed out.`
-        );
-
+        logWarn("bgpq4", `${version} command for ${asSet} timed out.`);
         resolve("");
       }
     }, timeoutMs);
@@ -53,11 +38,7 @@ async function runBGPQ4Async(
       if (!finished) {
         finished = true;
         clearTimeout(timeout);
-
-        console.warn(
-          `${color.red}[bgpq4]${color.reset} ${version} command for ${asSet} failed: ${err.message}`
-        );
-
+        logError("bgpq4", `${version} command for ${asSet} failed: ${err.message}`);
         resolve("");
       }
     });
@@ -65,20 +46,12 @@ async function runBGPQ4Async(
     proc.on("exit", (code) => {
       if (!finished) {
         finished = true;
-
         clearTimeout(timeout);
-
         if (code === 0) {
-          console.log(
-            `${color.green}[bgpq4]${color.reset} ${version} command for ${asSet} completed successfully.`
-          );
-
+          logInfo("bgpq4", `${version} command for ${asSet} completed successfully.`);
           resolve(stdout);
         } else {
-          console.warn(
-            `${color.red}[bgpq4]${color.reset} ${version} command for ${asSet} exited with code ${code}.`
-          );
-
+          logError("bgpq4", `${version} command for ${asSet} exited with code ${code}.`);
           resolve("");
         }
       }
@@ -107,14 +80,10 @@ export async function generatePrefixLists(
       const linesIPv6 = resultIPv6.trim() ? resultIPv6.trim().split("\n") : [];
 
       if (linesIPv4.length > 0)
-        console.log(
-          `${color.magenta}[bgpq4]${color.reset} Parsed ${linesIPv4.length} IPv4 prefix-list lines for ${asSet}.`
-        );
+        logMagenta("bgpq4", `Parsed ${linesIPv4.length} IPv4 prefix-list lines for ${asSet}.`);
 
       if (linesIPv6.length > 0)
-        console.log(
-          `${color.magenta}[bgpq4]${color.reset} Parsed ${linesIPv6.length} IPv6 prefix-list lines for ${asSet}.`
-        );
+        logMagenta("bgpq4", `Parsed ${linesIPv6.length} IPv6 prefix-list lines for ${asSet}.`);
 
       for (const line of linesIPv4)
         if (!results.v4.includes(line)) results.v4.push(line);
@@ -131,7 +100,6 @@ export function generatePrefixListCommands(prefixLists: PrefixLists): string[] {
   const commands = [...prefixLists.v4, ...prefixLists.v6].filter(
     (line) => !line.startsWith("no")
   );
-
   return ["conf t", ...commands, "end"];
 }
 

@@ -1,22 +1,11 @@
 import { execSync } from "child_process";
 import { ignoreList } from "../../config";
-
-const color = {
-  reset: "\x1b[0m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  red: "\x1b[31m",
-  cyan: "\x1b[36m",
-  magenta: "\x1b[35m",
-  gray: "\x1b[90m",
-};
+import { log, logInfo, logWarn, logError, logMagenta, color } from "./logger";
 
 function extractASNs(): number[] {
   const asNumbers: number[] = [];
   try {
-    console.log(
-      `${color.cyan}[extractASNs]${color.reset} Running vtysh to extract ASNs...`
-    );
+    log("extractASNs", "Running vtysh to extract ASNs...", color.cyan);
 
     const commandOutput = execSync("sudo vtysh -c 'sh bgp su'").toString();
     const lines = commandOutput.split("\n");
@@ -26,22 +15,17 @@ function extractASNs(): number[] {
 
       if (columns.length >= 3) {
         const AS = parseInt(columns[2]);
-
         if (!isNaN(AS) && !ignoreList.includes(AS) && !asNumbers.includes(AS))
           asNumbers.push(AS);
       }
     }
 
-    console.log(
-      `${color.green}[extractASNs]${color.reset} ASNs found: ${
-        color.magenta
-      }${asNumbers.join(", ")}${color.reset}`
+    logInfo(
+      "extractASNs",
+      `ASNs found: ${color.magenta}${asNumbers.join(", ")}${color.reset}`
     );
   } catch (error) {
-    console.error(
-      `${color.red}[extractASNs]${color.reset} Error executing BGP command:`,
-      error
-    );
+    logError("extractASNs", `Error executing BGP command: ${error}`);
   }
   return asNumbers;
 }
