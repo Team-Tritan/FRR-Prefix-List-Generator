@@ -1,4 +1,4 @@
-import { spawnSync } from "child_process";
+import { spawn } from "child_process";
 
 const color = {
   reset: "\x1b[0m",
@@ -15,53 +15,84 @@ interface PrefixLists {
   v6: string[];
 }
 
-function runBGPQ4(command: string, asSet: string, version: string): string {
-  console.log(
-    `${color.cyan}[bgpq4]${color.reset} Running ${version} command for ${asSet}: ${color.gray}${command}${color.reset}`
-  );
-  const [cmd, ...args] = command.split(" ");
-  const result = spawnSync(cmd, args, {
-    encoding: "utf-8",
-    timeout: 10000,
-    maxBuffer: 10 * 1024 * 1024,
-  });
-  if (result.error) {
-    if ((result.error as any).code === "ETIMEDOUT") {
-      console.warn(
-        `${color.yellow}[bgpq4]${color.reset} ${version} command for ${asSet} timed out.`
-      );
-    } else {
-      console.warn(
-        `${color.red}[bgpq4]${color.reset} ${version} command for ${asSet} failed: ${result.error.message}`
-      );
-    }
-    return "";
-  }
-  if (result.status !== 0) {
-    console.warn(
-      `${color.red}[bgpq4]${color.reset} ${version} command for ${asSet} exited with code ${result.status}.`
+function runBGPQ4Async(
+  command: string,
+  asSet: string,
+  version: string,
+  timeoutMs = 10000
+): Promise<string> {
+  return new Promise((resolve) => {
+    console.log(
+      `${color.cyan}[bgpq4]${color.reset} Running ${version} command for ${asSet}: ${color.gray}${command}${color.reset}`
     );
-    return "";
-  }
-  console.log(
-    `${color.green}[bgpq4]${color.reset} ${version} command for ${asSet} completed successfully.`
-  );
-  return result.stdout;
+    const [cmd, ...args] = command.split(" ");
+    const proc = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    let finished = false;
+
+    const timeout = setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        proc.kill("SIGKILL");
+        console.warn(
+          `${color.yellow}[bgpq4]${color.reset} ${version} command for ${asSet} timed out.`
+        );
+        resolve("");
+      }
+    }, timeoutMs);
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("error", (err) => {
+      if (!finished) {
+        finished = true;
+        clearTimeout(timeout);
+        console.warn(
+          `${color.red}[bgpq4]${color.reset} ${version} command for ${asSet} failed: ${err.message}`
+        );
+        resolve("");
+      }
+    });
+
+    proc.on("exit", (code) => {
+      if (!finished) {
+        finished = true;
+        clearTimeout(timeout);
+        if (code === 0) {
+          console.log(
+            `${color.green}[bgpq4]${color.reset} ${version} command for ${asSet} completed successfully.`
+          );
+          resolve(stdout);
+        } else {
+          console.warn(
+            `${color.red}[bgpq4]${color.reset} ${version} command for ${asSet} exited with code ${code}.`
+          );
+          resolve("");
+        }
+      }
+    });
+  });
 }
 
-function generatePrefixLists(asn: string, asSets: string[]): PrefixLists {
+async function generatePrefixLists(asn: string, asSets: string[]): Promise<PrefixLists> {
   const results: PrefixLists = { v4: [], v6: [] };
 
-  if (asSets && asSets.length > 0)
-    asSets.forEach((asSet: string) => {
+  if (asSets && asSets.length > 0) {
+    for (const asSet of asSets) {
       let namingFormatV4 = `AS${asn}-In-v4`;
       let namingFormatV6 = `AS${asn}-In-v6`;
 
       let bgpq4IPv4Command = `bgpq4 ${asSet} -l ${namingFormatV4} -S AFRINIC,ARIN,APNIC,LACNIC,RIPE`;
       let bgpq4IPv6Command = `bgpq4 -6 ${asSet} -l ${namingFormatV6} -S AFRINIC,ARIN,APNIC,LACNIC,RIPE`;
 
-      let resultIPv4 = runBGPQ4(bgpq4IPv4Command, asSet, "IPv4");
-      let resultIPv6 = runBGPQ4(bgpq4IPv6Command, asSet, "IPv6");
+      let resultIPv4 = await runBGPQ4Async(bgpq4IPv4Command, asSet, "IPv4");
+      let resultIPv6 = await runBGPQ4Async(bgpq4IPv6Command, asSet, "IPv6");
 
       let linesIPv4 = resultIPv4.trim() ? resultIPv4.trim().split("\n") : [];
       let linesIPv6 = resultIPv6.trim() ? resultIPv6.trim().split("\n") : [];
@@ -82,7 +113,8 @@ function generatePrefixLists(asn: string, asSets: string[]): PrefixLists {
 
       for (let i = 0; i < linesIPv6.length; i++)
         if (!results.v6.includes(linesIPv6[i])) results.v6.push(linesIPv6[i]);
-    });
+    }
+  }
 
   return results;
 }

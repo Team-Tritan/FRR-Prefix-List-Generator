@@ -62,7 +62,7 @@ async function main() {
         ", "
       )}${color.reset}`
     );
-    let prefixLists = generatePrefixLists(`${asn}`, asSets);
+    let prefixLists = await generatePrefixLists(`${asn}`, asSets);
 
     let commands = generatePrefixListCommands(prefixLists);
     console.log(
