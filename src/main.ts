@@ -7,7 +7,6 @@ import generatePrefixLists, {
 } from "./lib/generatePrefixLists";
 import { execSync } from "child_process";
 
-// Color helpers
 const color = {
   reset: "\x1b[0m",
   green: "\x1b[32m",
@@ -19,19 +18,19 @@ const color = {
 };
 
 async function main() {
-  console.log(`${color.cyan}[main] Extracting ASNs...${color.reset}`);
+  console.log(`${color.cyan}[main]${color.reset} Extracting ASNs...`);
   let asns = extractASNs();
   console.log(
-    `${color.green}[main] Found ASNs:${color.reset} ${color.magenta}${asns.join(
+    `${color.green}[main]${color.reset} Found ASNs: ${color.magenta}${asns.join(
       ", "
     )}${color.reset}`
   );
 
   for (const asn of asns) {
-    console.log(`${color.cyan}[main] Processing ASN ${asn}...${color.reset}`);
+    console.log(`${color.cyan}[main]${color.reset} Processing ASN ${asn}...`);
     let asSets = await fetchAsSets(asn);
     console.log(
-      `${color.green}[main] AS-SETs for ASN ${asn}:${color.reset} ${color.magenta}${asSets.join(
+      `${color.green}[main]${color.reset} AS-SETs for ASN ${asn}: ${color.magenta}${asSets.join(
         ", "
       )}${color.reset}`
     );
@@ -39,7 +38,7 @@ async function main() {
 
     let commands = generatePrefixListCommands(prefixLists);
     console.log(
-      `${color.cyan}[main] Generated ${commands.length - 2} prefix-list commands for ASN ${asn}.${color.reset}`
+      `${color.cyan}[main]${color.reset} Generated ${commands.length - 2} prefix-list commands for ASN ${asn}.`
     );
 
     if (commands.length > 2) {
@@ -47,30 +46,30 @@ async function main() {
       const vtyshCmd =
         "vtysh " + commands.map((cmd) => `-c "${cmd}"`).join(" ");
       console.log(
-        `${color.cyan}[main] Executing vtysh for ASN ${asn} with ${commands.length - 2} commands...${color.reset}`
+        `${color.cyan}[main]${color.reset} Executing vtysh for ASN ${asn} with ${commands.length - 2} commands...`
       );
       try {
         execSync(vtyshCmd, { timeout: 10000 }); // 10 seconds timeout
         commands.slice(1, -1).forEach((cmd) =>
-          console.log(`${color.green}[vtysh] Adding ${cmd}${color.reset}`)
+          console.log(`${color.green}[vtysh]${color.reset} Adding ${cmd}`)
         );
         console.log(
-          `${color.green}[main] vtysh execution for ASN ${asn} completed.${color.reset}`
+          `${color.green}[main]${color.reset} vtysh execution for ASN ${asn} completed.`
         );
       } catch (e) {
         console.error(
-          `${color.red}vtysh command timed out or failed for ASN ${asn}:${color.reset}`,
+          `${color.red}[main]${color.reset} vtysh command timed out or failed for ASN ${asn}:`,
           (e instanceof Error ? e.message : String(e))
         );
         continue;
       }
     } else {
       console.log(
-        `${color.yellow}[main] No prefix-list commands to apply for ASN ${asn}.${color.reset}`
+        `${color.yellow}[main]${color.reset} No prefix-list commands to apply for ASN ${asn}.`
       );
     }
   }
-  console.log(`${color.green}[main] All ASNs processed.${color.reset}`);
+  console.log(`${color.green}[main]${color.reset} All ASNs processed.`);
 }
 
 (async () => {

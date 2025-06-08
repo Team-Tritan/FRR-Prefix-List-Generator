@@ -1,6 +1,5 @@
 import axios from "axios";
 
-// Color helpers
 const color = {
   reset: "\x1b[0m",
   green: "\x1b[32m",
@@ -21,7 +20,7 @@ interface ASResponse {
 
 async function fetchASNSets(asn: number): Promise<string[]> {
   console.log(
-    `${color.cyan}[fetchAsSets] Fetching AS-SETs for ASN ${asn}...${color.reset}`
+    `${color.cyan}[fetchAsSets]${color.reset} Fetching AS-SETs for ASN ${asn}...`
   );
   return axios
     .get<ASResponse>(`https://www.peeringdb.com/api/as_set/${asn}`)
@@ -36,22 +35,23 @@ async function fetchASNSets(asn: number): Promise<string[]> {
         });
 
         console.log(
-          `${color.green}[fetchAsSets] AS-SET for AS${asn}:${color.reset} ${color.magenta}${asSets.join(
-            ", "
-          )}${color.reset}`
+          `${color.green}[fetchAsSets]${color.reset} AS-SET for AS${asn}: ${
+            color.magenta
+          }${asSets.join(", ")}${color.reset}`
         );
         return asSets;
       } else {
         console.log(
-          `${color.yellow}[fetchAsSets] No AS-SETs found for ASN ${asn}, using AS${asn}.${color.reset}`
+          `${color.yellow}[fetchAsSets]${color.reset} No AS-SETs found for ASN ${asn}, using AS${asn}.`
         );
         return [`AS${asn}`];
       }
     })
     .catch((err) => {
       console.log(
-        `${color.red}[fetchAsSets] Error fetching AS-SETs for ASN ${asn}:${color.reset} ${err?.message || err
-        }`
+        `${color.red}[fetchAsSets]${
+          color.reset
+        } Error fetching AS-SETs for ASN ${asn}: ${err?.message || err}`
       );
       return [`AS${asn}`];
     });

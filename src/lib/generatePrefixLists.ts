@@ -1,6 +1,5 @@
 import { spawnSync } from "child_process";
 
-// Color helpers
 const color = {
   reset: "\x1b[0m",
   green: "\x1b[32m",
@@ -18,34 +17,34 @@ interface PrefixLists {
 
 function runBGPQ4(command: string, asSet: string, version: string): string {
   console.log(
-    `${color.cyan}[bgpq4] Running ${version} command for ${asSet}:${color.reset} ${color.gray}${command}${color.reset}`
+    `${color.cyan}[bgpq4]${color.reset} Running ${version} command for ${asSet}: ${color.gray}${command}${color.reset}`
   );
   const [cmd, ...args] = command.split(" ");
   const result = spawnSync(cmd, args, {
     encoding: "utf-8",
     timeout: 10000,
-    maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large outputs
+    maxBuffer: 10 * 1024 * 1024,
   });
   if (result.error) {
     if ((result.error as any).code === "ETIMEDOUT") {
       console.warn(
-        `${color.yellow}[bgpq4] ${version} command for ${asSet} timed out.${color.reset}`
+        `${color.yellow}[bgpq4]${color.reset} ${version} command for ${asSet} timed out.`
       );
     } else {
       console.warn(
-        `${color.red}[bgpq4] ${version} command for ${asSet} failed: ${result.error.message}${color.reset}`
+        `${color.red}[bgpq4]${color.reset} ${version} command for ${asSet} failed: ${result.error.message}`
       );
     }
     return "";
   }
   if (result.status !== 0) {
     console.warn(
-      `${color.red}[bgpq4] ${version} command for ${asSet} exited with code ${result.status}.${color.reset}`
+      `${color.red}[bgpq4]${color.reset} ${version} command for ${asSet} exited with code ${result.status}.`
     );
     return "";
   }
   console.log(
-    `${color.green}[bgpq4] ${version} command for ${asSet} completed successfully.${color.reset}`
+    `${color.green}[bgpq4]${color.reset} ${version} command for ${asSet} completed successfully.`
   );
   return result.stdout;
 }
@@ -69,12 +68,12 @@ function generatePrefixLists(asn: string, asSets: string[]): PrefixLists {
 
       if (linesIPv4.length > 0) {
         console.log(
-          `${color.magenta}[bgpq4] Parsed ${linesIPv4.length} IPv4 prefix-list lines for ${asSet}.${color.reset}`
+          `${color.magenta}[bgpq4]${color.reset} Parsed ${linesIPv4.length} IPv4 prefix-list lines for ${asSet}.`
         );
       }
       if (linesIPv6.length > 0) {
         console.log(
-          `${color.magenta}[bgpq4] Parsed ${linesIPv6.length} IPv6 prefix-list lines for ${asSet}.${color.reset}`
+          `${color.magenta}[bgpq4]${color.reset} Parsed ${linesIPv6.length} IPv6 prefix-list lines for ${asSet}.`
         );
       }
 
