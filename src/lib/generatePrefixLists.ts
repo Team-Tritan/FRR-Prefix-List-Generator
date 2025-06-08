@@ -32,4 +32,13 @@ function generatePrefixLists(asn: string, asSets: string[]): PrefixLists {
   return results;
 }
 
+export function generatePrefixListCommands(prefixLists: PrefixLists): string[] {
+  // Combine v4 and v6 prefix list lines, filter out lines starting with "no"
+  const commands = [...prefixLists.v4, ...prefixLists.v6].filter(
+    (line) => !line.startsWith("no")
+  );
+  // Wrap with FRR CLI commands
+  return ["conf t", ...commands, "end"];
+}
+
 export default generatePrefixLists;

@@ -2,7 +2,7 @@
 
 import fetchAsSets from "./lib/fetchAsSets";
 import extractASNs from "./lib/extractASNs";
-import generatePrefixLists from "./lib/generatePrefixLists";
+import generatePrefixLists, { generatePrefixListCommands } from "./lib/generatePrefixLists";
 import { execSync } from "child_process";
 
 async function main() {
@@ -12,14 +12,15 @@ async function main() {
     let asSets = await fetchAsSets(asn);
     let prefixLists = generatePrefixLists(`${asn}`, asSets);
 
-    let combinedPrefixLists = [...prefixLists.v4, ...prefixLists.v6];
+    // Generate all commands for this ASN as a batch
+    let commands = generatePrefixListCommands(prefixLists);
 
-    if (combinedPrefixLists.length > 0)
-      combinedPrefixLists.forEach((i) => {
-        if (i.startsWith("no")) return;
-        execSync(`vtysh -c "conf t" -c "${i}" -c "end" -c "exit"`);
-        console.log(`Adding ${i}`);
-      });
+    if (commands.length > 2) { // "conf t", ...cmds..., "end"
+      // Join commands with ' -c ' for vtysh batch execution
+      const vtyshCmd = 'vtysh ' + commands.map(cmd => `-c "${cmd}"`).join(' ');
+      execSync(vtyshCmd);
+      commands.slice(1, -1).forEach(cmd => console.log(`Adding ${cmd}`));
+    }
   }
 }
 
