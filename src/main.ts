@@ -121,6 +121,7 @@ async function main() {
         log("main", `Setting IPv4 maximum-prefix for neighbor ${peer}: ${v4Count}`, color.cyan);
         try {
           await runVtysh(cmds.flatMap(cmd => ["-c", cmd]));
+          log("main", `IPv4 maximum-prefix set for neighbor ${peer}: ${v4Count}`, color.green);
         } catch (e) {
           logError("main", `Failed to set IPv4 maximum-prefix for neighbor ${peer}: ${e instanceof Error ? e.message : String(e)}`);
         }
@@ -139,6 +140,7 @@ async function main() {
         log("main", `Setting IPv6 maximum-prefix for neighbor ${peer}: ${v6Count}`, color.cyan);
         try {
           await runVtysh(cmds.flatMap(cmd => ["-c", cmd]));
+          log("main", `IPv6 maximum-prefix set for neighbor ${peer}: ${v6Count}`, color.green);
         } catch (e) {
           logError("main", `Failed to set IPv6 maximum-prefix for neighbor ${peer}: ${e instanceof Error ? e.message : String(e)}`);
         }
