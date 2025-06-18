@@ -114,7 +114,8 @@ async function main() {
     if (peerIPs.v4.length > 0 && v4Count > 0) {
       for (const peer of peerIPs.v4) {
         const cmds = [
-          "conf t",
+          "conf",
+          "router bgp",
           "address-family ipv4 unicast",
           `neighbor ${peer} maximum-prefix ${v4Count}`,
           "end"
