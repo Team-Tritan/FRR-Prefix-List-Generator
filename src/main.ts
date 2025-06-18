@@ -21,14 +21,19 @@ function getPeerIPs(asn: number): { v4: string[]; v6: string[] } {
   try {
     const output = execSync("vtysh -c 'show bgp neighbors'").toString();
     const blocks = output.split(/\n(?=BGP neighbor is )/);
+
     for (const block of blocks) {
       const ipMatch = block.match(/BGP neighbor is ([^\s,]+)/);
       if (!ipMatch) continue;
+
       const ip = ipMatch[1];
       const asMatch = block.match(/remote AS (\d+)/);
+
       if (!asMatch) continue;
       const remoteAsn = parseInt(asMatch[1], 10);
+      
       if (remoteAsn !== asn) continue;
+
       if (ip.includes(":")) {
         if (!v6.includes(ip)) v6.push(ip);
       } else {
