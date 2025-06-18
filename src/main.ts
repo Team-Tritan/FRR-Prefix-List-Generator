@@ -105,12 +105,10 @@ async function main() {
       logWarn("main", `No prefix-list commands to apply for ASN ${asn}.`);
     }
 
-    // --- Set maximum-prefix for each peer IP ---
     const peerIPs = getPeerIPs(asn);
     const v4Count = prefixLists.v4.length;
     const v6Count = prefixLists.v6.length;
 
-    // IPv4
     if (peerIPs.v4.length > 0 && v4Count > 0) {
       for (const peer of peerIPs.v4) {
         const cmds = [
@@ -129,7 +127,6 @@ async function main() {
       }
     }
 
-    // IPv6
     if (peerIPs.v6.length > 0 && v6Count > 0) {
       for (const peer of peerIPs.v6) {
         const cmds = [
@@ -147,7 +144,6 @@ async function main() {
         }
       }
     }
-    // --- End maximum-prefix logic ---
   }
 
   logInfo("main", "All ASNs processed.");
