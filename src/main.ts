@@ -141,8 +141,7 @@ async function main() {
         ];
         log("main", `Setting IPv6 maximum-prefix for neighbor ${peer}: ${v6Count}`, color.cyan);
         try {
-          console.log(cmds.flatMap(cmd => ["-c", cmd]));
-          //await runVtysh(cmds.flatMap(cmd => ["-c", cmd]));
+          await runVtysh(cmds.flatMap(cmd => ["-c", cmd]));
         } catch (e) {
           logError("main", `Failed to set IPv6 maximum-prefix for neighbor ${peer}: ${e instanceof Error ? e.message : String(e)}`);
         }
