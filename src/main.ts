@@ -137,7 +137,6 @@ async function main() {
           "address-family ipv6 unicast",
           `neighbor ${peer} maximum-prefix ${v6Count}`,
           "end",
-          "end"
         ];
         log("main", `Setting IPv6 maximum-prefix for neighbor ${peer}: ${v6Count}`, color.cyan);
         try {
