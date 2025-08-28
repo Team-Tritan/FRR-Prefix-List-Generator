@@ -1,25 +1,17 @@
-"use strict";
 
 import fetchAsSets from "./lib/fetchAsSets";
 import extractASNs from "./lib/extractASNs";
-import generatePrefixLists, {
-  generatePrefixListCommands,
-} from "./lib/generatePrefixLists";
+import generatePrefixLists, { generatePrefixListCommands } from "./lib/generatePrefixLists";
 import { spawn, execSync } from "child_process";
-import {
-  log,
-  logInfo,
-  logWarn,
-  logError,
-  color,
-} from "./lib/logger";
+import { log, logInfo, logWarn, logError, color } from "./lib/logger";
 import { vrfs } from "../config";
 
 function getPeerIPs(asn: number, vrf: string): { v4: string[]; v6: string[] } {
   const v4: string[] = [];
   const v6: string[] = [];
   try {
-    const output = execSync(`vtysh -c 'show bgp vrf ${vrf} su'`).toString();
+    const showCmd = vrf ? `vtysh -c 'show bgp vrf ${vrf} su'` : `vtysh -c 'show bgp su'`;
+    const output = execSync(showCmd).toString();
     const blocks = output.split(/\n(?=BGP neighbor is )/);
     for (const block of blocks) {
       const ipMatch = block.match(/BGP neighbor is ([^\s,]+)/);
@@ -52,23 +44,24 @@ function runVtysh(args: string[]): Promise<void> {
   });
 }
 
+
 async function main() {
   for (const vrf of Object.keys(vrfs)) {
-    log("main", `Processing VRF: ${vrf}...`, color.cyan);
+    const contextMsg = vrf ? `VRF ${vrf}` : "global";
+    log("main", `Processing ${contextMsg}...`, color.cyan);
     log("main", "Extracting ASNs...", color.cyan);
 
     const vrfASN = vrfs[vrf];
-
     if (!vrfASN) {
-      logError("main", `No ASN configured for VRF ${vrf}. Skipping.`);
+      logError("main", `No ASN configured for ${contextMsg}. Skipping.`);
       continue;
     }
 
     const asns = extractASNs(vrf);
-    logInfo("main", `Found ASNs in VRF ${vrf}: ${color.magenta}${asns.join(", ")}${color.reset}`);
-    
+    logInfo("main", `Found ASNs in ${contextMsg}: ${color.magenta}${asns.join(", ")}${color.reset}`);
+
     for (const asn of asns) {
-      log("main", `Processing ASN ${asn} in VRF ${vrf} (ASN for VRF: ${vrfASN})...`, color.cyan);
+      log("main", `Processing ASN ${asn} in ${contextMsg} (ASN: ${vrfASN})...`, color.cyan);
 
       const asSets = await fetchAsSets(asn);
       logInfo("main", `AS-SETs for ASN ${asn}: ${color.magenta}${asSets.join(", ")}${color.reset}`);
@@ -76,26 +69,26 @@ async function main() {
       const prefixLists = await generatePrefixLists(`${asn}`, asSets);
       const commands = generatePrefixListCommands(prefixLists);
 
-      log("main", `Generated ${commands.length - 2} prefix-list commands for ASN ${asn} in VRF ${vrf}.`, color.cyan);
+      log("main", `Generated ${commands.length - 2} prefix-list commands for ASN ${asn} in ${contextMsg}.`, color.cyan);
 
       if (commands.length > 2) {
         const vtyshArgs: string[] = [];
         vtyshArgs.push("-c", "conf");
-        vtyshArgs.push("-c", `router bgp ${vrfASN} vrf ${vrf}`);
+        vtyshArgs.push("-c", vrf ? `router bgp ${vrfASN} vrf ${vrf}` : `router bgp ${vrfASN}`);
         commands.slice(1, -1).forEach((cmd) => vtyshArgs.push("-c", cmd));
         vtyshArgs.push("-c", "end");
 
-        log("main", `Executing vtysh for ASN ${asn} in VRF ${vrf} with ${commands.length - 2} commands...`, color.cyan);
+        log("main", `Executing vtysh for ASN ${asn} in ${contextMsg} with ${commands.length - 2} commands...`, color.cyan);
         try {
           await runVtysh(vtyshArgs);
           commands.slice(1, -1).forEach((cmd) => logInfo("vtysh", `Applied: ${cmd}`));
-          logInfo("main", `vtysh execution for ASN ${asn} in VRF ${vrf} completed.`);
+          logInfo("main", `vtysh execution for ASN ${asn} in ${contextMsg} completed.`);
         } catch (e) {
-          logError("main", `vtysh command failed for ASN ${asn} in VRF ${vrf}: ${e instanceof Error ? e.message : String(e)}`);
+          logError("main", `vtysh command failed for ASN ${asn} in ${contextMsg}: ${e instanceof Error ? e.message : String(e)}`);
           continue;
         }
       } else {
-        logWarn("main", `No prefix-list commands to apply for ASN ${asn} in VRF ${vrf}.`);
+        logWarn("main", `No prefix-list commands to apply for ASN ${asn} in ${contextMsg}.`);
       }
 
       const peerIPs = getPeerIPs(asn, vrf);
@@ -107,7 +100,7 @@ async function main() {
       peerIPs.v4.forEach((peer) => {
         maxPrefixCmds.push(
           "-c", "conf",
-          "-c", `router bgp ${vrfASN} vrf ${vrf}`,
+          "-c", vrf ? `router bgp ${vrfASN} vrf ${vrf}` : `router bgp ${vrfASN}`,
           "-c", "address-family ipv4 unicast",
           "-c", `neighbor ${peer} maximum-prefix ${v4Count}`,
           "-c", "end"
@@ -117,7 +110,7 @@ async function main() {
       peerIPs.v6.forEach((peer) => {
         maxPrefixCmds.push(
           "-c", "conf",
-          "-c", `router bgp ${vrfASN} vrf ${vrf}`,
+          "-c", vrf ? `router bgp ${vrfASN} vrf ${vrf}` : `router bgp ${vrfASN}`,
           "-c", "address-family ipv6 unicast",
           "-c", `neighbor ${peer} maximum-prefix ${v6Count}`,
           "-c", "end"
@@ -125,12 +118,12 @@ async function main() {
       });
 
       if (maxPrefixCmds.length > 0) {
-        log("main", `Applying max-prefix settings for ASN ${asn} in VRF ${vrf}...`, color.cyan);
+        log("main", `Applying max-prefix settings for ASN ${asn} in ${contextMsg}...`, color.cyan);
         try {
           await runVtysh(maxPrefixCmds);
-          log("main", `Max-prefix configuration applied for ASN ${asn} in VRF ${vrf}.`, color.green);
+          log("main", `Max-prefix configuration applied for ASN ${asn} in ${contextMsg}.`, color.green);
         } catch (e) {
-          logError("main", `Failed to apply max-prefix for ASN ${asn} in VRF ${vrf}: ${e instanceof Error ? e.message : String(e)}`);
+          logError("main", `Failed to apply max-prefix for ASN ${asn} in ${contextMsg}: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
     }
@@ -141,3 +134,4 @@ async function main() {
 (async () => {
   await main();
 })();
+
