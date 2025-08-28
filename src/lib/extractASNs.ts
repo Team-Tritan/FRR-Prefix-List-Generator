@@ -7,7 +7,7 @@ function extractASNs(): number[] {
   try {
     log("extractASNs", "Running vtysh to extract ASNs...", color.cyan);
 
-    const commandOutput = execSync("sudo vtysh -c 'sh bgp su'").toString();
+    const commandOutput = execSync("sudo vtysh -c 'show bgp vrf main su'").toString();
     const lines = commandOutput.split("\n");
 
     for (let i = 6; i < lines.length; i++) {
