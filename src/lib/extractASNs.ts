@@ -2,14 +2,13 @@ import { execSync } from "child_process";
 import { ignoreList } from "../../config";
 import { log, logInfo, logWarn, logError, logMagenta, color } from "./logger";
 
-function extractASNs(vrf: string): number[] {
+function extractASNs(): number[] {
   const asNumbers: number[] = [];
   try {
-    const contextMsg = vrf ? `VRF ${vrf}` : "global";
-    log("extractASNs", `Running vtysh to extract ASNs for ${contextMsg}...`, color.cyan);
+    log("extractASNs", `Running vtysh to extract ASNs...`, color.cyan);
 
-    const cmd = vrf ? `sudo vtysh -c 'show bgp vrf ${vrf} su'` : `sudo vtysh -c 'show bgp su'`;
-    const commandOutput = execSync(cmd).toString();
+    const commandOutput = execSync(`sudo vtysh -c 'show bgp su'`).toString();
+    
     const lines = commandOutput.split("\n");
 
     for (let i = 6; i < lines.length; i++) {
@@ -23,10 +22,10 @@ function extractASNs(vrf: string): number[] {
 
     logInfo(
       "extractASNs",
-      `ASNs found in ${contextMsg}: ${color.magenta}${asNumbers.join(", ")}${color.reset}`
+      `ASNs found: ${color.magenta}${asNumbers.join(", ")}${color.reset}`
     );
   } catch (error) {
-    logError("extractASNs", `Error executing BGP command for ${vrf ? `VRF ${vrf}` : "global"}: ${error}`);
+    logError("extractASNs", `Error executing BGP command: ${error}`);
   }
   return asNumbers;
 }
