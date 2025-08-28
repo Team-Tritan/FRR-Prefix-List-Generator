@@ -4,6 +4,5 @@ export const ignoreList = [
 ];
 
 export const vrfs: { [vrf: string]: number } = {
-  main: 393577
-  // Add more VRFs and their ASNs here
+//
 };
