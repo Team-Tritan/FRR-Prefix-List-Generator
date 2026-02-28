@@ -70,8 +70,8 @@ export async function generatePrefixLists(
       const namingFormatV4 = `AS${asn}-In-v4`;
       const namingFormatV6 = `AS${asn}-In-v6`;
 
-      const bgpq4IPv4Command = `bgpq4 ${asSet} -l ${namingFormatV4} -S AFRINIC,ARIN,APNIC,LACNIC,RIPE`;
-      const bgpq4IPv6Command = `bgpq4 -6 ${asSet} -l ${namingFormatV6} -S AFRINIC,ARIN,APNIC,LACNIC,RIPE`;
+      const bgpq4IPv4Command = `bgpq4 ${asSet} -l ${namingFormatV4} -S ARIN,RIPE,AFRINIC,APNIC,LACNIC,RIPE,RADB,ALTDB`;
+      const bgpq4IPv6Command = `bgpq4 -6 ${asSet} -l ${namingFormatV6} -S ARIN,RIPE,AFRINIC,APNIC,LACNIC,RIPE,RADB,ALTDB`;
 
       const resultIPv4 = await runBGPQ4Async(bgpq4IPv4Command, asSet, "IPv4");
       const resultIPv6 = await runBGPQ4Async(bgpq4IPv6Command, asSet, "IPv6");
