@@ -27,11 +27,11 @@ pub fn run_health_check(
         all_passed = false;
     }
 
-    if let Ok(mut resolver) = resolver.lock() {
-        if let Err(e) = resolver.health_check() {
-            log::error!("AS-SET resolver check failed: {}", e);
-            all_passed = false;
-        }
+    if let Ok(mut resolver) = resolver.lock()
+        && let Err(e) = resolver.health_check()
+    {
+        log::error!("AS-SET resolver check failed: {}", e);
+        all_passed = false;
     }
 
     Ok(all_passed)

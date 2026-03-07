@@ -50,11 +50,11 @@ impl PrefixListService {
             all_passed = false;
         }
 
-        if let Ok(mut resolver) = self.as_set_resolver.lock() {
-            if let Err(e) = resolver.health_check() {
-                log::error!("AS-SET resolver health check failed: {}", e);
-                all_passed = false;
-            }
+        if let Ok(mut resolver) = self.as_set_resolver.lock()
+            && let Err(e) = resolver.health_check()
+        {
+            log::error!("AS-SET resolver health check failed: {}", e);
+            all_passed = false;
         }
 
         if all_passed {

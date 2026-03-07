@@ -46,7 +46,7 @@ pub struct LoggingConfig {
     pub level: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FilterConfig {
     #[serde(default)]
     pub ignore_asns: Vec<u32>,
@@ -136,14 +136,6 @@ impl Default for LoggingConfig {
     }
 }
 
-impl Default for FilterConfig {
-    fn default() -> Self {
-        Self {
-            ignore_asns: Vec::new(),
-        }
-    }
-}
-
 impl Default for Bgpq4Config {
     fn default() -> Self {
         Self {
@@ -152,6 +144,7 @@ impl Default for Bgpq4Config {
     }
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for Config {
     fn default() -> Self {
         Self {

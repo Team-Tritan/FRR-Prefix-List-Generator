@@ -161,6 +161,12 @@ fn run_bgpq4(
 /// Vtysh command wrapper implementing RouterConfigurator
 pub struct VtyshAdapter;
 
+impl Default for VtyshAdapter {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl VtyshAdapter {
     pub fn new() -> Self {
         Self
@@ -365,11 +371,11 @@ fn parse_bgp_summary(output: &str) -> Result<Vec<(String, Asn)>> {
     let mut neighbors = Vec::new();
 
     for line in output.lines().skip(6) {
-        let columns: Vec<&str> = line.trim().split_whitespace().collect();
-        if columns.len() >= 3 {
-            if let Some(asn) = Asn::new(columns[2].parse::<u32>().unwrap_or(0)) {
-                neighbors.push((columns[0].to_string(), asn));
-            }
+        let columns: Vec<&str> = line.split_whitespace().collect();
+        if columns.len() >= 3
+            && let Some(asn) = Asn::new(columns[2].parse::<u32>().unwrap_or(0))
+        {
+            neighbors.push((columns[0].to_string(), asn));
         }
     }
 
@@ -594,11 +600,12 @@ fn extract_as_set_names(data: &[AsSetData]) -> Vec<String> {
     let mut as_sets = Vec::new();
 
     for item in data {
-        for field in [&item.as_set, &item.as_set_ixp, &item.as_set_route_server] {
-            if let Some(name) = field {
-                if !name.is_empty() && !as_sets.contains(name) {
-                    as_sets.push(name.clone());
-                }
+        for name in [&item.as_set, &item.as_set_ixp, &item.as_set_route_server]
+            .into_iter()
+            .flatten()
+        {
+            if !name.is_empty() && !as_sets.contains(name) {
+                as_sets.push(name.clone());
             }
         }
     }
