@@ -1,0 +1,37 @@
+[package]
+name = "frr-prefix-gen"
+version = "0.1.0"
+edition = "2024"
+authors = ["AS393577"]
+description = "FRR Prefix List Generator - Fetches AS-SETs and generates BGP prefix lists"
+license = "MIT"
+
+[dependencies]
+# Minimal HTTP client with pure Rust TLS
+minreq = { version = "2", features = ["https-rustls"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# CLI parsing
+clap = { version = "4", features = ["derive", "env"] }
+
+# Logging (simple, no async)
+log = "0.4"
+env_logger = "0.11"
+
+# Error handling
+thiserror = "2"
+
+# IP address validation
+ipnet = "2"
+
+# Regex for parsing
+regex = "1"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,53 @@
+# FRR Prefix Generator Configuration
+# Place this file at /etc/frr-prefix-gen/config.toml or specify with --config
+
+[general]
+# Number of ASNs to process concurrently
+concurrency = 4
+# Timeout for bgpq4 commands (seconds)
+bgpq4_timeout = 10
+# Timeout for PeeringDB API requests (seconds)
+api_timeout = 30
+
+[peeringdb]
+# Base URL for PeeringDB API
+base_url = "https://www.peeringdb.com/api"
+# Maximum requests per minute (proactive rate limiting)
+rate_limit_per_minute = 60
+# Maximum retries on 429 errors
+max_retries = 3
+# Initial retry delay in seconds
+retry_delay_secs = 5
+
+[logging]
+# Format: "human" or "json"
+format = "human"
+# Log level: trace, debug, info, warn, error
+level = "info"
+
+# ASNs to ignore (IXPs, transits, etc.)
+[filter]
+ignore_asns = [
+    393577,  # Your own ASN
+    6939,    # Hurricane Electric
+    1299,    # Telia
+    174,     # Cogent
+    13335,   # Cloudflare
+    35920,   # Google
+    40542,   # Facebook
+    46389,   # Microsoft
+    210461,  # More...
+    21738,
+    36090,
+    24381,
+    137409,
+    5,
+    3936,
+    32097,
+    42,
+    16509,
+]
+
+[bgpq4]
+# IRR sources to query
+sources = ["ARIN", "RIPE", "AFRINIC", "APNIC", "LACNIC", "RADB", "ALTDB"]
