@@ -110,12 +110,7 @@ JSON format always includes timestamps.
 
 ### Systemd (Recommended)
 
-For production deployments, use systemd with automatic scheduling:
-
-```bash
-# See docs/systemd.md for complete setup instructions
-cat docs/systemd.md
-```
+For production deployments, use systemd with automatic scheduling. See the [Systemd Integration Guide](docs/systemd.md) for complete setup instructions including service units, timer configuration, and troubleshooting.
 
 Benefits:
 - Logs automatically go to journald (view with `journalctl -u frr-prefix-gen`)
