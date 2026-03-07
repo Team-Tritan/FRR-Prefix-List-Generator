@@ -47,6 +47,12 @@ That's it. No recompiling when you want to change the ignore list.
 ## Usage
 
 ```bash
+# Validate configuration file
+./frr-prefix-gen --validate
+
+# Validate with strict mode (fail on warnings)
+./frr-prefix-gen --validate --strict
+
 # Health check - verifies bgpq4, vtysh, and PeeringDB API are accessible
 ./frr-prefix-gen --check
 
@@ -62,6 +68,17 @@ That's it. No recompiling when you want to change the ignore list.
 # Use custom config location
 ./frr-prefix-gen --config /path/to/config.toml
 ```
+
+### Configuration Validation
+
+The `--validate` flag checks your config file without requiring external services:
+
+- **File validation**: Checks config exists and is readable
+- **Syntax validation**: Ensures valid TOML
+- **Value validation**: Verifies ranges (timeouts > 0, valid ASNs, etc.)
+- **Warnings**: Flags suspicious values (debug logging, single IRR source, etc.)
+
+Use `--strict` to fail on warnings as well as errors.
 
 ## Running on a schedule
 
