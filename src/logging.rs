@@ -11,10 +11,10 @@ pub fn init_logging(config: &Config) -> crate::error::Result<()> {
         "error" => LevelFilter::Error,
         _ => LevelFilter::Info,
     };
-    
+
     let mut builder = Builder::new();
     builder.filter_level(level);
-    
+
     match config.logging.format {
         LogFormat::Json => {
             builder.format(|buf, record| {
@@ -30,16 +30,11 @@ pub fn init_logging(config: &Config) -> crate::error::Result<()> {
         LogFormat::Human => {
             builder.format(|buf, record| {
                 use std::io::Write;
-                writeln!(
-                    buf,
-                    "{} {}",
-                    record.target(),
-                    record.args()
-                )
+                writeln!(buf, "{} {}", record.target(), record.args())
             });
         }
     }
-    
+
     builder.init();
     Ok(())
 }

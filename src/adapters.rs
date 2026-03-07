@@ -1,5 +1,5 @@
 //! Implementation of external service adapters
-//! 
+//!
 //! These adapters implement the port interfaces and wrap the actual
 //! external tools (bgpq4, vtysh, PeeringDB API).
 
@@ -41,36 +41,41 @@ impl PrefixGenerator for Bgpq4Adapter {
             })
             .map(|_| ())
     }
-    
+
     fn generate_prefix_lists(&self, asn: Asn, as_sets: &[String]) -> Result<PrefixLists> {
         let mut results = PrefixLists::new();
         let sources_str = self.config.sources.join(",");
-        
+
         for as_set in as_sets {
             log::info!("Generating prefix lists for {} via {}", asn, as_set);
-            
+
             let v4_name = asn.prefix_list_name(IpVersion::V4);
             let v6_name = asn.prefix_list_name(IpVersion::V6);
-            
+
             // Run IPv4 and IPv6 in parallel
             let sources_str_v4 = sources_str.clone();
             let sources_str_v6 = sources_str.clone();
             let as_set_v4 = as_set.clone();
             let as_set_v6 = as_set.clone();
-            
+
             let v4_handle = thread::spawn(move || {
                 run_bgpq4(&as_set_v4, &v4_name, &sources_str_v4, IpVersion::V4)
             });
-            
+
             let v6_handle = thread::spawn(move || {
                 run_bgpq4(&as_set_v6, &v6_name, &sources_str_v6, IpVersion::V6)
             });
-            
-            let v4_result = v4_handle.join()
+
+            let v4_result = v4_handle
+                .join()
                 .expect("IPv4 bgpq4 thread panicked unexpectedly");
             match v4_result {
                 Ok(lines) => {
-                    log::debug!("Parsed {} IPv4 prefix-list lines for {}", lines.len(), as_set);
+                    log::debug!(
+                        "Parsed {} IPv4 prefix-list lines for {}",
+                        lines.len(),
+                        as_set
+                    );
                     for line in lines {
                         results.add_v4(line);
                     }
@@ -79,12 +84,17 @@ impl PrefixGenerator for Bgpq4Adapter {
                     log::error!("Failed to generate IPv4 prefixes for {}: {}", as_set, e);
                 }
             }
-            
-            let v6_result = v6_handle.join()
+
+            let v6_result = v6_handle
+                .join()
                 .expect("IPv6 bgpq4 thread panicked unexpectedly");
             match v6_result {
                 Ok(lines) => {
-                    log::debug!("Parsed {} IPv6 prefix-list lines for {}", lines.len(), as_set);
+                    log::debug!(
+                        "Parsed {} IPv6 prefix-list lines for {}",
+                        lines.len(),
+                        as_set
+                    );
                     for line in lines {
                         results.add_v6(line);
                     }
@@ -94,32 +104,44 @@ impl PrefixGenerator for Bgpq4Adapter {
                 }
             }
         }
-        
+
         log::info!(
             "Generated {} total prefixes for {} ({} v4, {} v6)",
-            results.len(), asn, results.v4_count(), results.v6_count()
+            results.len(),
+            asn,
+            results.v4_count(),
+            results.v6_count()
         );
-        
+
         Ok(results)
     }
 }
 
-fn run_bgpq4(as_set: &str, list_name: &str, sources: &str, version: IpVersion) -> Result<Vec<String>> {
+fn run_bgpq4(
+    as_set: &str,
+    list_name: &str,
+    sources: &str,
+    version: IpVersion,
+) -> Result<Vec<String>> {
     let mut cmd = Command::new("bgpq4");
-    
-    cmd.arg(as_set).arg("-l").arg(list_name).arg("-S").arg(sources);
-    
+
+    cmd.arg(as_set)
+        .arg("-l")
+        .arg(list_name)
+        .arg("-S")
+        .arg(sources);
+
     if version == IpVersion::V6 {
         cmd.arg("-6");
     }
-    
+
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-    
+
     let output = cmd.output().map_err(|e| PrefixGenError::Bgpq4Error {
         as_set: as_set.to_string(),
         reason: format!("Failed to execute: {}", e),
     })?;
-    
+
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(stdout
@@ -157,45 +179,55 @@ impl RouterConfigurator for VtyshAdapter {
                     PrefixGenError::VtyshError(format!("Failed to execute vtysh: {}", e))
                 }
             })?;
-        
+
         if output.status.success() {
             let version = String::from_utf8_lossy(&output.stdout);
-            log::info!("vtysh is available: {}", version.lines().next().unwrap_or("unknown"));
+            log::info!(
+                "vtysh is available: {}",
+                version.lines().next().unwrap_or("unknown")
+            );
             Ok(())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(PrefixGenError::VtyshError(format!("vtysh error: {}", stderr)))
+            Err(PrefixGenError::VtyshError(format!(
+                "vtysh error: {}",
+                stderr
+            )))
         }
     }
-    
+
     fn get_bgp_neighbors(&self) -> Result<Vec<(String, Asn)>> {
         let output = self.execute_vtysh_command("show bgp summary")?;
         parse_bgp_summary(&output)
     }
-    
+
     fn get_peer_ips(&self, asn: Asn) -> Result<(Vec<String>, Vec<String>)> {
         let output = self.execute_vtysh_command("show bgp summary")?;
         parse_peer_ips(&output, asn)
     }
-    
+
     fn apply_prefix_lists(&self, asn: Asn, prefix_lists: &PrefixLists) -> Result<()> {
         if prefix_lists.is_empty() {
             log::warn!("No prefix-list commands to apply for {}", asn);
             return Ok(());
         }
-        
+
         let commands = build_prefix_list_commands(prefix_lists);
-        log::info!("Applying {} prefix-list commands for {}", commands.len(), asn);
-        
+        log::info!(
+            "Applying {} prefix-list commands for {}",
+            commands.len(),
+            asn
+        );
+
         self.execute_vtysh_commands(&commands)?;
         log::info!("Successfully applied prefix lists for {}", asn);
-        
+
         Ok(())
     }
-    
+
     fn get_current_prefix_lists(&self, asn: Asn) -> Result<PrefixLists> {
         let mut lists = PrefixLists::new();
-        
+
         let v4_name = asn.prefix_list_name(IpVersion::V4);
         match self.get_prefix_list(&v4_name) {
             Ok(lines) => {
@@ -207,7 +239,7 @@ impl RouterConfigurator for VtyshAdapter {
                 log::debug!("No existing IPv4 prefix list for {}: {}", asn, e);
             }
         }
-        
+
         let v6_name = asn.prefix_list_name(IpVersion::V6);
         match self.get_prefix_list(&v6_name) {
             Ok(lines) => {
@@ -219,10 +251,10 @@ impl RouterConfigurator for VtyshAdapter {
                 log::debug!("No existing IPv6 prefix list for {}: {}", asn, e);
             }
         }
-        
+
         Ok(lists)
     }
-    
+
     fn set_max_prefix_limits(
         &self,
         v4_peers: &[String],
@@ -239,12 +271,16 @@ impl RouterConfigurator for VtyshAdapter {
                     format!("neighbor {} maximum-prefix {}", peer, v4_count),
                     "end".to_string(),
                 ];
-                
-                log::info!("Setting IPv4 maximum-prefix for neighbor {}: {}", peer, v4_count);
+
+                log::info!(
+                    "Setting IPv4 maximum-prefix for neighbor {}: {}",
+                    peer,
+                    v4_count
+                );
                 self.execute_vtysh_commands(&commands)?;
             }
         }
-        
+
         for peer in v6_peers {
             if v6_count > 0 {
                 let commands = vec![
@@ -254,12 +290,16 @@ impl RouterConfigurator for VtyshAdapter {
                     format!("neighbor {} maximum-prefix {}", peer, v6_count),
                     "end".to_string(),
                 ];
-                
-                log::info!("Setting IPv6 maximum-prefix for neighbor {}: {}", peer, v6_count);
+
+                log::info!(
+                    "Setting IPv6 maximum-prefix for neighbor {}: {}",
+                    peer,
+                    v6_count
+                );
                 self.execute_vtysh_commands(&commands)?;
             }
         }
-        
+
         Ok(())
     }
 }
@@ -276,7 +316,7 @@ impl VtyshAdapter {
                     PrefixGenError::VtyshError(format!("Failed to execute vtysh: {}", e))
                 }
             })?;
-        
+
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
@@ -284,24 +324,24 @@ impl VtyshAdapter {
             Err(PrefixGenError::VtyshError(stderr.to_string()))
         }
     }
-    
+
     fn execute_vtysh_commands(&self, commands: &[String]) -> Result<()> {
         let mut args: Vec<String> = Vec::new();
-        
+
         for cmd in commands {
             args.push("-c".to_string());
             args.push(cmd.clone());
         }
-        
+
         log::debug!("Executing vtysh with {} commands", commands.len());
-        
+
         let output = Command::new("vtysh")
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
             .map_err(|e| PrefixGenError::VtyshError(format!("Failed to execute vtysh: {}", e)))?;
-        
+
         if output.status.success() {
             Ok(())
         } else {
@@ -310,16 +350,20 @@ impl VtyshAdapter {
             Err(PrefixGenError::VtyshError(stderr.to_string()))
         }
     }
-    
+
     fn get_prefix_list(&self, name: &str) -> Result<Vec<String>> {
         let output = self.execute_vtysh_command(&format!("show ip prefix-list {}", name))?;
-        Ok(output.lines().map(|s| s.to_string()).filter(|s| !s.is_empty()).collect())
+        Ok(output
+            .lines()
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty())
+            .collect())
     }
 }
 
 fn parse_bgp_summary(output: &str) -> Result<Vec<(String, Asn)>> {
     let mut neighbors = Vec::new();
-    
+
     for line in output.lines().skip(6) {
         let columns: Vec<&str> = line.trim().split_whitespace().collect();
         if columns.len() >= 3 {
@@ -328,23 +372,24 @@ fn parse_bgp_summary(output: &str) -> Result<Vec<(String, Asn)>> {
             }
         }
     }
-    
+
     Ok(neighbors)
 }
 
 fn parse_peer_ips(output: &str, target_asn: Asn) -> Result<(Vec<String>, Vec<String>)> {
     let mut v4_peers = Vec::new();
     let mut v6_peers = Vec::new();
-    
+
     let re = Regex::new(r"^(\S+)\s+.*?(\d+)\s").unwrap();
-    
+
     for line in output.lines().skip(6) {
         if let Some(caps) = re.captures(line) {
             let ip = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-            let remote_as = caps.get(2)
+            let remote_as = caps
+                .get(2)
                 .and_then(|m| m.as_str().parse::<u32>().ok())
                 .unwrap_or(0);
-            
+
             if remote_as == target_asn.as_u32() {
                 if ip.contains(':') {
                     if !v6_peers.contains(&ip.to_string()) {
@@ -358,23 +403,28 @@ fn parse_peer_ips(output: &str, target_asn: Asn) -> Result<(Vec<String>, Vec<Str
             }
         }
     }
-    
-    log::debug!("Found {} IPv4 and {} IPv6 peers for {}", v4_peers.len(), v6_peers.len(), target_asn);
-    
+
+    log::debug!(
+        "Found {} IPv4 and {} IPv6 peers for {}",
+        v4_peers.len(),
+        v6_peers.len(),
+        target_asn
+    );
+
     Ok((v4_peers, v6_peers))
 }
 
 fn build_prefix_list_commands(prefix_lists: &PrefixLists) -> Vec<String> {
     let mut commands = vec!["configure terminal".to_string()];
-    
+
     for entry in prefix_lists.v4_entries() {
         commands.push(entry.clone());
     }
-    
+
     for entry in prefix_lists.v6_entries() {
         commands.push(entry.clone());
     }
-    
+
     commands.push("end".to_string());
     commands
 }
@@ -409,7 +459,7 @@ impl PeeringDbAdapter {
         } else {
             Duration::from_millis(0)
         };
-        
+
         Self {
             config,
             timeout_secs,
@@ -417,7 +467,7 @@ impl PeeringDbAdapter {
             min_interval,
         }
     }
-    
+
     fn apply_rate_limit(&mut self) {
         if let Some(last) = self.last_request {
             let elapsed = last.elapsed();
@@ -445,26 +495,27 @@ impl AsSetResolver for PeeringDbAdapter {
             }
         }
     }
-    
+
     fn fetch_as_sets(&mut self, asn: Asn) -> Result<Vec<String>> {
         log::info!("Fetching AS-SETs for {}", asn);
-        
+
         self.apply_rate_limit();
-        
+
         let url = format!("{}/as_set/{}", self.config.base_url, asn.as_u32());
         let mut attempt = 0;
         let max_retries = self.config.max_retries;
-        
+
         loop {
             attempt += 1;
-            
+
             match minreq::get(&url)
                 .with_header("User-Agent", "frr-prefix-gen/0.1.0")
                 .with_timeout(self.timeout_secs)
-                .send() {
+                .send()
+            {
                 Ok(response) => {
                     let status = response.status_code;
-                    
+
                     if (200..300).contains(&status) {
                         return parse_as_set_response(response.as_str().unwrap_or("{}"), asn);
                     } else if status == 429 {
@@ -473,8 +524,13 @@ impl AsSetResolver for PeeringDbAdapter {
                             return Ok(vec![format!("AS{}", asn.as_u32())]);
                         }
                         let retry_after = 60u64;
-                        log::warn!("Rate limited for {}, waiting {}s (attempt {}/{})", 
-                            asn, retry_after, attempt, max_retries);
+                        log::warn!(
+                            "Rate limited for {}, waiting {}s (attempt {}/{})",
+                            asn,
+                            retry_after,
+                            attempt,
+                            max_retries
+                        );
                         thread::sleep(Duration::from_secs(retry_after));
                         continue;
                     } else {
@@ -486,13 +542,22 @@ impl AsSetResolver for PeeringDbAdapter {
                 }
                 Err(e) => {
                     if attempt > max_retries {
-                        log::warn!("Network error for {} after {} attempts, falling back to direct AS", 
-                            asn, max_retries);
+                        log::warn!(
+                            "Network error for {} after {} attempts, falling back to direct AS",
+                            asn,
+                            max_retries
+                        );
                         return Ok(vec![format!("AS{}", asn.as_u32())]);
                     }
                     let retry_delay = 2u64.pow(attempt);
-                    log::warn!("Network error for {}, retrying in {}s (attempt {}/{}): {}", 
-                        asn, retry_delay, attempt, max_retries, e);
+                    log::warn!(
+                        "Network error for {}, retrying in {}s (attempt {}/{}): {}",
+                        asn,
+                        retry_delay,
+                        attempt,
+                        max_retries,
+                        e
+                    );
                     thread::sleep(Duration::from_secs(retry_delay));
                     continue;
                 }
@@ -506,7 +571,12 @@ fn parse_as_set_response(json: &str, asn: Asn) -> Result<Vec<String>> {
         Ok(data) => {
             let as_sets = extract_as_set_names(&data.data);
             if !as_sets.is_empty() {
-                log::info!("Found {} AS-SET(s) for {}: {:?}", as_sets.len(), asn, as_sets);
+                log::info!(
+                    "Found {} AS-SET(s) for {}: {:?}",
+                    as_sets.len(),
+                    asn,
+                    as_sets
+                );
                 Ok(as_sets)
             } else {
                 log::warn!("No AS-SETs found for {}, falling back to {}", asn, asn);
@@ -522,7 +592,7 @@ fn parse_as_set_response(json: &str, asn: Asn) -> Result<Vec<String>> {
 
 fn extract_as_set_names(data: &[AsSetData]) -> Vec<String> {
     let mut as_sets = Vec::new();
-    
+
     for item in data {
         for field in [&item.as_set, &item.as_set_ixp, &item.as_set_route_server] {
             if let Some(name) = field {
@@ -532,6 +602,6 @@ fn extract_as_set_names(data: &[AsSetData]) -> Vec<String> {
             }
         }
     }
-    
+
     as_sets
 }

@@ -1,6 +1,6 @@
+use crate::error::{PrefixGenError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use crate::error::{PrefixGenError, Result};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -66,15 +66,33 @@ pub enum LogFormat {
 }
 
 // Default functions
-fn default_concurrency() -> usize { 4 }
-fn default_bgpq4_timeout() -> u64 { 10 }
-fn default_api_timeout() -> u64 { 30 }
-fn default_base_url() -> String { "https://www.peeringdb.com/api".to_string() }
-fn default_rate_limit() -> u32 { 60 }
-fn default_max_retries() -> u32 { 3 }
-fn default_retry_delay() -> u64 { 5 }
-fn default_log_format() -> LogFormat { LogFormat::Human }
-fn default_log_level() -> String { "info".to_string() }
+fn default_concurrency() -> usize {
+    4
+}
+fn default_bgpq4_timeout() -> u64 {
+    10
+}
+fn default_api_timeout() -> u64 {
+    30
+}
+fn default_base_url() -> String {
+    "https://www.peeringdb.com/api".to_string()
+}
+fn default_rate_limit() -> u32 {
+    60
+}
+fn default_max_retries() -> u32 {
+    3
+}
+fn default_retry_delay() -> u64 {
+    5
+}
+fn default_log_format() -> LogFormat {
+    LogFormat::Human
+}
+fn default_log_level() -> String {
+    "info".to_string()
+}
 fn default_sources() -> Vec<String> {
     vec![
         "ARIN".to_string(),
@@ -120,13 +138,17 @@ impl Default for LoggingConfig {
 
 impl Default for FilterConfig {
     fn default() -> Self {
-        Self { ignore_asns: Vec::new() }
+        Self {
+            ignore_asns: Vec::new(),
+        }
     }
 }
 
 impl Default for Bgpq4Config {
     fn default() -> Self {
-        Self { sources: default_sources() }
+        Self {
+            sources: default_sources(),
+        }
     }
 }
 
@@ -150,20 +172,20 @@ impl Config {
         config.validate()?;
         Ok(config)
     }
-    
+
     fn validate(&self) -> Result<()> {
         if self.general.concurrency == 0 {
             return Err(PrefixGenError::ConfigError(
-                "Concurrency must be at least 1".to_string()
+                "Concurrency must be at least 1".to_string(),
             ));
         }
-        
+
         if self.peeringdb.rate_limit_per_minute == 0 {
             return Err(PrefixGenError::ConfigError(
-                "Rate limit must be at least 1 req/min".to_string()
+                "Rate limit must be at least 1 req/min".to_string(),
             ));
         }
-        
+
         Ok(())
     }
 }
