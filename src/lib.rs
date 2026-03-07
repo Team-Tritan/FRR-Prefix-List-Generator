@@ -18,6 +18,7 @@ pub mod logging;
 pub mod ports;
 pub mod service;
 pub mod types;
+pub mod validate;
 
 use crate::adapters::{Bgpq4Adapter, PeeringDbAdapter, VtyshAdapter};
 use crate::cli::Cli;
@@ -30,6 +31,11 @@ use std::sync::{Arc, Mutex};
 
 /// Run the application with the given CLI arguments
 pub fn run(cli: Cli) -> Result<()> {
+    // Handle validation mode first (before loading config)
+    if cli.validate {
+        return run_validation(&cli);
+    }
+
     // Load configuration
     let config = load_config(&cli)?;
 
@@ -115,4 +121,58 @@ fn run_health_check(service: &PrefixListService) -> Result<()> {
             std::process::exit(1);
         }
     }
+}
+
+fn run_validation(cli: &Cli) -> Result<()> {
+    use crate::validate::validate_config;
+
+    eprintln!("Validating configuration: {}", cli.config.display());
+    eprintln!();
+
+    let result = validate_config(&cli.config)?;
+
+    // Print errors
+    for error in result.errors() {
+        eprintln!("✗ {}", error);
+    }
+
+    // Print warnings
+    for warning in result.warnings() {
+        eprintln!("⚠ {}", warning);
+    }
+
+    eprintln!();
+
+    if !result.is_valid() {
+        let error_count = result.errors().len();
+        eprintln!(
+            "Validation: FAILED ({} error{})",
+            error_count,
+            if error_count == 1 { "" } else { "s" }
+        );
+        std::process::exit(1);
+    }
+
+    if cli.strict && result.has_warnings() {
+        let warning_count = result.warnings().len();
+        eprintln!(
+            "Validation: FAILED (--strict mode, {} warning{})",
+            warning_count,
+            if warning_count == 1 { "" } else { "s" }
+        );
+        std::process::exit(1);
+    }
+
+    if result.has_warnings() {
+        let warning_count = result.warnings().len();
+        eprintln!(
+            "Validation: PASSED ({} warning{})",
+            warning_count,
+            if warning_count == 1 { "" } else { "s" }
+        );
+    } else {
+        eprintln!("Validation: PASSED");
+    }
+
+    Ok(())
 }

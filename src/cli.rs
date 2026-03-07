@@ -34,6 +34,14 @@ pub struct Cli {
     /// Only process specific ASN (can be specified multiple times)
     #[arg(short, long)]
     pub asn: Vec<u32>,
+
+    /// Validate configuration file and exit
+    #[arg(long)]
+    pub validate: bool,
+
+    /// Treat warnings as errors (only applies with --validate)
+    #[arg(long)]
+    pub strict: bool,
 }
 
 impl Cli {
