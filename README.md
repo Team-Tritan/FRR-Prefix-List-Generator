@@ -35,6 +35,12 @@ Copy `config.example.toml` to `/etc/frr-prefix-gen/config.toml` and edit it:
 [general]
 concurrency = 4  # How many ASNs to process at once
 
+[logging]
+level = "info"
+format = "human"
+timestamps = false              # Enable timestamps in logs
+timestamp_format = "%Y-%m-%d %H:%M:%S"  # strftime format
+
 [filter]
 ignore_asns = [6939, 174]  # ASNs to skip (HE, Cogent, etc.)
 
@@ -65,6 +71,12 @@ That's it. No recompiling when you want to change the ignore list.
 # Process specific ASN(s) only
 ./frr-prefix-gen --asn 13335 --asn 15169
 
+# Enable timestamps in logs
+./frr-prefix-gen --timestamps
+
+# Use custom timestamp format
+./frr-prefix-gen --timestamps --timestamp-format "%Y-%m-%d %H:%M:%S"
+
 # Use custom config location
 ./frr-prefix-gen --config /path/to/config.toml
 ```
@@ -80,15 +92,48 @@ The `--validate` flag checks your config file without requiring external service
 
 Use `--strict` to fail on warnings as well as errors.
 
+### Timestamps
+
+Timestamps are disabled by default for human-readable format. Enable them with:
+
+- **CLI**: `--timestamps` or `--timestamp-format "%F %T"`
+- **Config**: Set `timestamps = true` in `[logging]` section
+
+When enabled, human format logs look like:
+```
+[2026-03-07 18:30:00] INFO Starting FRR Prefix List Generator v0.1.0
+```
+
+JSON format always includes timestamps.
+
 ## Running on a schedule
 
-Add to crontab to run daily at midnight:
+### Systemd (Recommended)
+
+For production deployments, use systemd with automatic scheduling:
+
+```bash
+# See docs/systemd.md for complete setup instructions
+cat docs/systemd.md
+```
+
+Benefits:
+- Logs automatically go to journald (view with `journalctl -u frr-prefix-gen`)
+- Automatic retry if system was down during scheduled time
+- Built-in resource limits and security hardening
+- View logs with timestamps: `journalctl -u frr-prefix-gen --output=short-iso`
+
+### Crontab (Simple)
+
+For simple setups, add to crontab:
 
 ```cron
 0 0 * * * /usr/local/bin/frr-prefix-gen >> /var/log/prefix-gen.log 2>&1
 ```
 
 Since it only modifies the running config, you can always roll back by reloading your saved FRR config if something goes wrong.
+
+**Note**: When using cron, add `--timestamps` to include timestamps in log output.
 
 ## Building from source
 

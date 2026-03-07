@@ -101,6 +101,17 @@ fn load_config(cli: &Cli) -> Result<Config> {
         };
     }
 
+    // Apply timestamp overrides
+    if cli.timestamps {
+        config.logging.timestamps = true;
+    } else if cli.no_timestamps {
+        config.logging.timestamps = false;
+    }
+
+    if let Some(ref format) = cli.timestamp_format {
+        config.logging.timestamp_format = format.clone();
+    }
+
     Ok(config)
 }
 

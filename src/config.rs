@@ -44,6 +44,10 @@ pub struct LoggingConfig {
     pub format: LogFormat,
     #[serde(default = "default_log_level")]
     pub level: String,
+    #[serde(default = "default_timestamps")]
+    pub timestamps: bool,
+    #[serde(default = "default_timestamp_format")]
+    pub timestamp_format: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -93,6 +97,12 @@ fn default_log_format() -> LogFormat {
 fn default_log_level() -> String {
     "info".to_string()
 }
+fn default_timestamps() -> bool {
+    false
+}
+fn default_timestamp_format() -> String {
+    "%Y-%m-%d %H:%M:%S".to_string()
+}
 fn default_sources() -> Vec<String> {
     vec![
         "ARIN".to_string(),
@@ -132,6 +142,8 @@ impl Default for LoggingConfig {
         Self {
             format: default_log_format(),
             level: default_log_level(),
+            timestamps: default_timestamps(),
+            timestamp_format: default_timestamp_format(),
         }
     }
 }

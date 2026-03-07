@@ -42,6 +42,18 @@ pub struct Cli {
     /// Treat warnings as errors (only applies with --validate)
     #[arg(long)]
     pub strict: bool,
+
+    /// Enable timestamps in log output
+    #[arg(long)]
+    pub timestamps: bool,
+
+    /// Disable timestamps in log output
+    #[arg(long)]
+    pub no_timestamps: bool,
+
+    /// Timestamp format (strftime syntax, e.g., "%Y-%m-%d %H:%M:%S")
+    #[arg(long, value_name = "FORMAT")]
+    pub timestamp_format: Option<String>,
 }
 
 impl Cli {
