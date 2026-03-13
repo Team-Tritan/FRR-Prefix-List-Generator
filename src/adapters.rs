@@ -8,6 +8,13 @@ use crate::error::{PrefixGenError, Result};
 use crate::ports::{AsSetResolver, PrefixGenerator, RouterConfigurator};
 use crate::types::{Asn, IpVersion, PrefixLists};
 use regex::Regex;
+use std::sync::OnceLock;
+
+static PEER_IP_RE: OnceLock<Regex> = OnceLock::new();
+
+fn peer_ip_regex() -> &'static Regex {
+    PEER_IP_RE.get_or_init(|| Regex::new(r"^(\S+)\s+.*?(\d+)\s").unwrap())
+}
 use serde::Deserialize;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -218,7 +225,7 @@ impl RouterConfigurator for VtyshAdapter {
             return Ok(());
         }
 
-        let commands = build_prefix_list_commands(prefix_lists);
+        let commands = build_prefix_list_commands(asn, prefix_lists);
         log::info!(
             "Applying {} prefix-list commands for {}",
             commands.len(),
@@ -263,6 +270,7 @@ impl RouterConfigurator for VtyshAdapter {
 
     fn set_max_prefix_limits(
         &self,
+        asn: Asn,
         v4_peers: &[String],
         v6_peers: &[String],
         v4_count: usize,
@@ -272,7 +280,7 @@ impl RouterConfigurator for VtyshAdapter {
             if v4_count > 0 {
                 let commands = vec![
                     "configure terminal".to_string(),
-                    "router bgp".to_string(),
+                    format!("router bgp {}", asn.as_u32()),
                     "address-family ipv4 unicast".to_string(),
                     format!("neighbor {} maximum-prefix {}", peer, v4_count),
                     "end".to_string(),
@@ -291,7 +299,7 @@ impl RouterConfigurator for VtyshAdapter {
             if v6_count > 0 {
                 let commands = vec![
                     "configure terminal".to_string(),
-                    "router bgp".to_string(),
+                    format!("router bgp {}", asn.as_u32()),
                     "address-family ipv6 unicast".to_string(),
                     format!("neighbor {} maximum-prefix {}", peer, v6_count),
                     "end".to_string(),
@@ -386,7 +394,7 @@ fn parse_peer_ips(output: &str, target_asn: Asn) -> Result<(Vec<String>, Vec<Str
     let mut v4_peers = Vec::new();
     let mut v6_peers = Vec::new();
 
-    let re = Regex::new(r"^(\S+)\s+.*?(\d+)\s").unwrap();
+    let re = peer_ip_regex();
 
     for line in output.lines().skip(6) {
         if let Some(caps) = re.captures(line) {
@@ -420,8 +428,11 @@ fn parse_peer_ips(output: &str, target_asn: Asn) -> Result<(Vec<String>, Vec<Str
     Ok((v4_peers, v6_peers))
 }
 
-fn build_prefix_list_commands(prefix_lists: &PrefixLists) -> Vec<String> {
-    let mut commands = vec!["configure terminal".to_string()];
+fn build_prefix_list_commands(asn: Asn, prefix_lists: &PrefixLists) -> Vec<String> {
+    let mut commands = vec![
+        "configure terminal".to_string(),
+        format!("router bgp {}", asn.as_u32()),
+    ];
 
     for entry in prefix_lists.v4_entries() {
         commands.push(entry.clone());

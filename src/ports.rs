@@ -35,6 +35,7 @@ pub trait RouterConfigurator: Send + Sync {
     /// Set maximum prefix limits for neighbors
     fn set_max_prefix_limits(
         &self,
+        asn: Asn,
         v4_peers: &[String],
         v6_peers: &[String],
         v4_count: usize,

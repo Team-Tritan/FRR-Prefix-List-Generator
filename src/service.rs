@@ -114,10 +114,12 @@ impl PrefixListService {
         let (v4_peers, v6_peers) = self.router_config.get_peer_ips(asn)?;
         let peers = PeerIPs::from_ips(v4_peers, v6_peers);
 
-        // Step 4: Show diff in dry-run mode
+        // Step 4: Show diff and summary, then bail if dry-run
         if dry_run {
             self.show_diff(asn, &new_prefix_lists)?;
             self.show_summary(asn, &new_prefix_lists, &peers);
+            log::info!("Dry-run mode: skipping apply for {}", asn);
+            return Ok(());
         }
 
         // Step 5: Apply prefix lists
@@ -126,6 +128,7 @@ impl PrefixListService {
 
         // Step 6: Set max-prefix limits
         if let Err(e) = self.router_config.set_max_prefix_limits(
+            asn,
             peers.v4_peers(),
             peers.v6_peers(),
             new_prefix_lists.v4_count(),
